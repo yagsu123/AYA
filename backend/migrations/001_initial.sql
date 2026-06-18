@@ -26,9 +26,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- bcrypt hash of admin@123 at migration time (never stored in plain text).
 INSERT INTO members (mobile, password_hash, role, role_status, status)
 VALUES (
-  '9876767676',
+  '9313774645',
   '{{ADMIN_PASSWORD_HASH}}',
-  'president',
+  'admin',
   'approved',
   'active'
 )
