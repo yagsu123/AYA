@@ -18,5 +18,5 @@ SELECT
   'Aradhana Education Society (AES) supports the education of children and youth in our community.',
   'AES was started by the Aradhana Youth Association to extend its work beyond events into education and welfare.',
   'Provide scholarships, learning materials and mentorship to deserving students of the community.',
-  '9876767676'
+  '9841312249'
 WHERE NOT EXISTS (SELECT 1 FROM aes_content);

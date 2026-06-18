@@ -21,9 +21,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Seed default admin
--- {{ADMIN_PASSWORD_HASH}} is replaced by scripts/migrate.js with a fresh
--- bcrypt hash of admin@123 at migration time (never stored in plain text).
 INSERT INTO members (mobile, password_hash, role, role_status, status)
 VALUES (
   '9313774645',

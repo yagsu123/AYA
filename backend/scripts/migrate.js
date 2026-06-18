@@ -12,7 +12,7 @@ async function run() {
   const dir = path.join(__dirname, '..', 'migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
 
-  const adminHash = await bcrypt.hash('admin@123', 12);
+  const adminHash = await bcrypt.hash('Jin@24', 12);
 
   for (const file of files) {
     let sql = fs.readFileSync(path.join(dir, file), 'utf8');
