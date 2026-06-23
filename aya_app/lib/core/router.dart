@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/auth_provider.dart';
 import '../features/auth/login/login_screen.dart';
 import '../features/auth/splash/splash_screen.dart';
+import '../features/auth/totp/totp_setup_screen.dart';
 import '../features/birthdays/view/birthdays_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/events/view/event_detail_screen.dart';
@@ -27,6 +28,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(
+        path: '/totp-setup',
+        builder: (_, state) => TotpSetupScreen(args: state.extra as TotpSetupArgs),
+      ),
       GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
       GoRoute(path: '/admin', builder: (_, __) => const AdminPanelScreen()),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),

@@ -1,14 +1,17 @@
 // scripts/migrate.js — runs all migrations/*.sql in order.
 // Replaces {{ADMIN_PASSWORD_HASH}} with a fresh bcrypt hash of admin@123
 // so no hash (and no plain password) ever lives in the repo.
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const env = require('../src/config/env');
 
 async function run() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new Pool({
+    connectionString: env.databaseUrl,
+    ssl: env.databaseSsl,
+  });
   const dir = path.join(__dirname, '..', 'migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
 

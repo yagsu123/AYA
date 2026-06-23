@@ -21,12 +21,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- The bootstrap administrator. The role must be one the app and the
+-- requireRole middleware recognise as an admin ('president' | 'secretary');
+-- 'member' is the only other valid role. If this row was previously seeded
+-- with an unrecognised role, correct it on re-run so the admin regains access.
 INSERT INTO members (mobile, password_hash, role, role_status, status)
 VALUES (
   '9313774645',
   '{{ADMIN_PASSWORD_HASH}}',
-  'admin',
+  'president',
   'approved',
   'active'
 )
-ON CONFLICT (mobile) DO NOTHING;
+ON CONFLICT (mobile) DO UPDATE
+  SET role        = 'president',
+      role_status = 'approved',
+      status      = 'active';

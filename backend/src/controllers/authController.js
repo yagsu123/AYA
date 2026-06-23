@@ -3,6 +3,7 @@ const memberModel = require('../models/memberModel');
 const refreshTokenModel = require('../models/refreshTokenModel');
 const auditModel = require('../models/auditModel');
 const bcrypt = require('../utils/bcrypt');
+const totp = require('../utils/totp');
 const {
   signAccessToken,
   signRefreshToken,
@@ -22,43 +23,95 @@ async function issueTokens(member) {
   return { token, refreshToken };
 }
 
+/**
+ * Validates mobile → active account → password. Shared by login and the
+ * authenticator-verify endpoint so the credential rules live in one place.
+ * Returns `{ member }` on success or `{ error: { status, code, message } }`.
+ */
+async function authenticate(mobile, password) {
+  const member = await memberModel.findByMobile(mobile);
+  if (!member) {
+    return { error: { status: 404, code: 'MOBILE_NOT_FOUND', message: 'Mobile number not found' } };
+  }
+  if (member.status !== 'active') {
+    return {
+      error: { status: 403, code: 'ACCOUNT_INACTIVE', message: 'Account is inactive. Contact administrator.' },
+    };
+  }
+  const passwordMatches = await bcrypt.compare(password, member.password_hash);
+  if (!passwordMatches) {
+    return { error: { status: 401, code: 'INCORRECT_PASSWORD', message: 'Incorrect password' } };
+  }
+  return { member };
+}
+
+/** Issues tokens, records the LOGIN audit entry, and returns the response. */
+async function completeLogin(req, res, member) {
+  const { token, refreshToken } = await issueTokens(member);
+  req.auditActorId = member.id; // so audit middleware attributes this request
+  await auditModel.log({
+    actorId: member.id,
+    action: 'LOGIN',
+    targetId: member.id,
+    targetType: 'member',
+  });
+  return res.json({ token, refreshToken, member: publicMember(member) });
+}
+
 // POST /api/auth/login
 async function login(req, res, next) {
   try {
     const { mobile, password } = req.body;
-
-    // 1. mobile exists → 404 if not
-    const member = await memberModel.findByMobile(mobile);
-    if (!member) {
-      return res.status(404).json({ code: 'MOBILE_NOT_FOUND', message: 'Mobile number not found' });
+    const { member, error } = await authenticate(mobile, password);
+    if (error) {
+      return res.status(error.status).json({ code: error.code, message: error.message });
     }
 
-    // 2. active → 403 if not
-    if (member.status !== 'active') {
-      return res.status(403).json({
-        code: 'ACCOUNT_INACTIVE',
-        message: 'Account is inactive. Contact administrator.',
+    // First sign-in: the member must enrol an authenticator before any token
+    // is issued. The secret is generated once and reused across attempts so
+    // the QR code stays stable until enrolment is confirmed.
+    if (!member.totp_enabled) {
+      let secret = member.totp_secret;
+      if (!secret) {
+        secret = totp.generateSecret();
+        await memberModel.setTotpSecret(member.id, secret);
+      }
+      return res.json({
+        totpSetupRequired: true,
+        otpauthUrl: totp.buildOtpAuthUrl(member.mobile, secret),
+        secret,
       });
     }
 
-    // 3. password → 401 if wrong
-    const ok = await bcrypt.compare(password, member.password_hash);
-    if (!ok) {
-      return res.status(401).json({ code: 'INCORRECT_PASSWORD', message: 'Incorrect password' });
+    return completeLogin(req, res, member);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/auth/totp/verify — confirms first-login authenticator enrolment.
+async function verifyTotpSetup(req, res, next) {
+  try {
+    const { mobile, password, token } = req.body;
+    const { member, error } = await authenticate(mobile, password);
+    if (error) {
+      return res.status(error.status).json({ code: error.code, message: error.message });
     }
 
-    // 4–6. issue JWT (7d) + refresh token (30d)
-    const { token, refreshToken } = await issueTokens(member);
+    // Already enrolled (e.g. a stale setup screen) — just sign them in.
+    if (member.totp_enabled) {
+      return completeLogin(req, res, member);
+    }
 
-    req.auditActorId = member.id; // so audit middleware attributes this request
-    await auditModel.log({
-      actorId: member.id,
-      action: 'LOGIN',
-      targetId: member.id,
-      targetType: 'member',
-    });
+    if (!member.totp_secret || !totp.verifyToken(token, member.totp_secret)) {
+      return res.status(401).json({
+        code: 'INVALID_OTP',
+        message: 'Invalid authenticator code. Please try again.',
+      });
+    }
 
-    return res.json({ token, refreshToken, member: publicMember(member) });
+    await memberModel.enableTotp(member.id);
+    return completeLogin(req, res, member);
   } catch (err) {
     return next(err);
   }
@@ -137,4 +190,4 @@ async function me(req, res) {
   });
 }
 
-module.exports = { login, refresh, logout, me };
+module.exports = { login, verifyTotpSetup, refresh, logout, me };

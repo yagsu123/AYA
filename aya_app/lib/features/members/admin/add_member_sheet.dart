@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/auth_service.dart' show AuthException;
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/contact_actions.dart';
 import '../../../core/utils/validators.dart';
 import 'admin_provider.dart';
 
@@ -108,6 +109,14 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           ],
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () =>
+                ContactActions.whatsapp(mobile, message: _credentialsMessage(mobile, tempPassword)),
+            icon: const Icon(Icons.chat, size: 18, color: AppColors.primary),
+            label: Text('Send on WhatsApp',
+                style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700, color: AppColors.primary)),
+          ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text('Done',
@@ -117,6 +126,15 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
       ),
     );
   }
+
+  /// Pre-filled WhatsApp message a member receives with their login details.
+  String _credentialsMessage(String mobile, String tempPassword) =>
+      '🙏 Welcome to AYA — Sree Aradhana Youth Association!\n\n'
+      'Your login details:\n'
+      'Mobile: $mobile\n'
+      'Password: $tempPassword\n\n'
+      'Open the AYA app and sign in with these. '
+      'On your first sign-in you will set up a quick authenticator code for security.';
 
   @override
   Widget build(BuildContext context) {

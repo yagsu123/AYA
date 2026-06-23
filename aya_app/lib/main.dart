@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,14 +13,21 @@ import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Keep the device screen awake while the app is in the foreground so it does
-  // not dim or lock during use (e.g. reading an event or the directory).
-  await WakelockPlus.enable();
+
+  // Load runtime config before the app starts. A missing or unreadable .env is
+  // non-fatal: ApiService falls back to its development base URL.
   try {
     await dotenv.load(fileName: '.env');
   } catch (_) {
-    // No .env bundled — ApiService falls back to http://10.0.2.2:3000/api
+    // No .env bundled — ApiService uses its fallback base URL.
   }
+
+  // Keep the device screen awake while the app is in the foreground so it does
+  // not dim or lock during use (e.g. reading an event or the directory). This
+  // is best-effort: a platform that rejects the request must never prevent the
+  // app from launching, so it runs unawaited and swallows its own failure.
+  unawaited(WakelockPlus.enable().catchError((_) {}));
+
   runApp(const ProviderScope(child: AyaApp()));
 }
 

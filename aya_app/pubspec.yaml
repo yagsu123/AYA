@@ -26,6 +26,7 @@ dependencies:
   wakelock_plus: ^1.2.1
   audioplayers: ^6.1.0
   package_info_plus: ^9.0.0
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

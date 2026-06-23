@@ -9,8 +9,21 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// Managed Postgres providers (Supabase, Railway, Render, RDS, …) require a TLS
+// connection. Local Postgres does not. We enable SSL for every non-local host
+// so the same code works in development and production. `rejectUnauthorized` is
+// false because Supabase's connection pooler presents a certificate that is not
+// in Node's default trust store; the channel is still encrypted.
+function resolveDatabaseSsl(connectionString) {
+  const targetsLocalhost = /@(localhost|127\.0\.0\.1)([:/]|$)/.test(
+    connectionString || '',
+  );
+  return targetsLocalhost ? false : { rejectUnauthorized: false };
+}
+
 module.exports = {
   databaseUrl: process.env.DATABASE_URL,
+  databaseSsl: resolveDatabaseSsl(process.env.DATABASE_URL),
   jwtSecret: process.env.JWT_SECRET,
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
   port: parseInt(process.env.PORT || '3000', 10),

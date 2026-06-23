@@ -5,10 +5,28 @@ const MEMBER_LIMIT = 81;
 
 async function findByMobile(mobile) {
   const { rows } = await db.query(
-    'SELECT id, mobile, password_hash, role, role_status, status FROM members WHERE mobile = $1',
+    `SELECT id, mobile, password_hash, role, role_status, status,
+            totp_secret, totp_enabled
+     FROM members WHERE mobile = $1`,
     [mobile]
   );
   return rows[0] || null;
+}
+
+/** Stores a pending authenticator secret (enrolment not yet confirmed). */
+async function setTotpSecret(id, secret) {
+  await db.query(
+    `UPDATE members SET totp_secret = $2, updated_at = NOW() WHERE id = $1`,
+    [id, secret]
+  );
+}
+
+/** Confirms authenticator enrolment after the first valid code. */
+async function enableTotp(id) {
+  await db.query(
+    `UPDATE members SET totp_enabled = TRUE, updated_at = NOW() WHERE id = $1`,
+    [id]
+  );
 }
 
 async function findById(id) {
@@ -103,6 +121,8 @@ async function listActiveDirectory() {
 module.exports = {
   MEMBER_LIMIT,
   findByMobile,
+  setTotpSecret,
+  enableTotp,
   findById,
   create,
   list,

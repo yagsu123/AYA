@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../config/app_environment.dart';
 import 'storage_service.dart';
 
 /// Dio client with:
@@ -9,7 +9,7 @@ import 'storage_service.dart';
 class ApiService {
   ApiService._() {
     _dio = Dio(BaseOptions(
-      baseUrl: dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3000/api',
+      baseUrl: AppEnvironment.apiBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {'Content-Type': 'application/json'},
@@ -31,7 +31,8 @@ class _AuthInterceptor extends Interceptor {
   final Dio _dio;
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
     if (options.extra['skipAuth'] != true) {
       final jwt = await StorageService.instance.jwt;
       if (jwt != null) options.headers['Authorization'] = 'Bearer $jwt';
@@ -46,7 +47,8 @@ class _AuthInterceptor extends Interceptor {
         err.requestOptions.path.contains('/auth/refresh');
 
     // Inactive account → hard logout.
-    if (status == 403 && err.response?.data is Map &&
+    if (status == 403 &&
+        err.response?.data is Map &&
         err.response?.data['code'] == 'ACCOUNT_INACTIVE') {
       await StorageService.instance.clearTokens();
       ApiService.instance.onSessionExpired?.call('inactive');
@@ -54,7 +56,9 @@ class _AuthInterceptor extends Interceptor {
     }
 
     // Expired access token → try refresh once, then retry original request.
-    if (status == 401 && !isAuthCall && err.requestOptions.extra['retried'] != true) {
+    if (status == 401 &&
+        !isAuthCall &&
+        err.requestOptions.extra['retried'] != true) {
       final refreshed = await _tryRefresh();
       if (refreshed) {
         try {

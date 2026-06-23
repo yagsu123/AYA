@@ -11,6 +11,7 @@ import '../../../core/widgets/contact_action_row.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/validators.dart';
 import '../auth_provider.dart';
+import '../totp/totp_setup_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -62,14 +63,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     if (!_formKey.currentState!.validate()) return;
 
-    final ok = await ref.read(authProvider.notifier).login(
+    final result = await ref.read(authProvider.notifier).login(
           _mobileCtrl.text.trim(),
           _passwordCtrl.text,
           rememberMe: _rememberMe,
         );
     if (!mounted) return;
 
-    if (ok) {
+    if (result != null && result.totpSetupRequired) {
+      // First sign-in — set up the authenticator before entering the app.
+      context.push(
+        '/totp-setup',
+        extra: TotpSetupArgs(
+          mobile: _mobileCtrl.text.trim(),
+          password: _passwordCtrl.text,
+          otpauthUrl: result.otpauthUrl!,
+          secret: result.secret!,
+          rememberMe: _rememberMe,
+        ),
+      );
+      return;
+    }
+
+    if (result != null) {
       final role = ref.read(authProvider).member?.role;
       context.go(role == 'president' || role == 'secretary' ? '/admin' : '/dashboard');
       return;

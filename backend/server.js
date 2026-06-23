@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 
 const env = require('./src/config/env');
+const db = require('./src/config/db');
 const authRoutes = require('./src/routes/auth');
 const adminRoutes = require('./src/routes/admin');
 const profileRoutes = require('./src/routes/profile');
@@ -35,7 +36,18 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(auditLogger);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+// Health probe that also verifies the database connection, so a broken
+// DATABASE_URL or missing SSL surfaces here instead of failing silently on
+// every authenticated request.
+app.get('/api/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    return res.json({ status: 'ok', database: 'connected' });
+  } catch (err) {
+    console.error('Health check failed:', err.message);
+    return res.status(503).json({ status: 'degraded', database: 'unavailable' });
+  }
+});
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);

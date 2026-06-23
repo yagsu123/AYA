@@ -66,10 +66,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _routeWhenReady() async {
-    await Future.wait([
-      ref.read(authProvider.notifier).bootstrap(),
-      _done.future,
-    ]);
+    // Wait for the auth check and the minimum reveal time, but never let a slow
+    // or hung backend keep the splash on screen indefinitely. If the bound is
+    // hit we route with whatever auth state resolved (defaulting to login).
+    try {
+      await Future.wait([
+        ref.read(authProvider.notifier).bootstrap(),
+        _done.future,
+      ]).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Timed out or failed — fall through and route on the current state.
+    }
     if (!mounted) return;
     final auth = ref.read(authProvider);
     final authed = auth.status == AuthStatus.authenticated;
